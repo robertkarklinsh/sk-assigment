@@ -8,21 +8,21 @@ class AStar(object):
     """
 
     def __init__(self,
-                 ob_space_dims=(10, 10),
+                 grid_dims=(10, 10),
                  timeout=500):
         """
 
         Args:
-            ob_space_dims: tuple(height,width)
-            timeout: max_num of inner cycles, at each cycle algorithm expands to next states
+            grid_dims: tuple(grid_height,grid_width)
+            timeout: int, max_num of inner cycles, at each cycle algorithm expands to next states
         """
-        self.ob_space_dims = ob_space_dims
-        self.n_vertices = self.ob_space_dims[0] * self.ob_space_dims[1]
-        self.cost_g = np.zeros(self.ob_space_dims).flatten() + np.infty
+        self.grid_dims = grid_dims
+        self.n_cells = self.grid_dims[0] * self.grid_dims[1]
+        self.cost_g = np.zeros(self.grid_dims).flatten() + np.infty
         # Heuristic cost function, implemented as euclidean distance to goal:
         self.cost_h = None
         # Keeps track of current shortest paths to opened elements:
-        self.traceback_table = np.zeros((self.n_vertices, self.n_vertices), dtype=bool)
+        self.traceback_table = np.zeros((self.n_cells, self.n_cells), dtype=bool)
         # Open list from original paper paper (Hart et al., 1968)
         self.opened = []
         self.timeout = timeout
@@ -44,24 +44,27 @@ class AStar(object):
                 cost: int, distance along shortest path
 
         """
-        goal_i, goal_j = np.unravel_index(goal, self.ob_space_dims)
+        goal_i, goal_j = np.unravel_index(goal, self.grid_dims)
         self.cost_h = np.fromfunction(lambda i, j: np.sqrt((goal_i - i) ** 2 + (goal_j - j) ** 2),
-                                      self.ob_space_dims).flatten()
+                                      self.grid_dims).flatten()
         s = start
         self.cost_g[s] = 0
         self.opened.append(s)
         t = 0
         while t < self.timeout:
             t = t + 1
+            if len(self.opened) == 0:
+                self.reset()
+                raise Exception(self.name + " failed to find shortest path: maybe something is blocking the goal? ")
             s = self.opened[(self.cost_g + self.cost_h)[self.opened].argmin()]
             self.opened.remove(s)
             if s == goal:
                 shortest_path = list(reversed(self._traceback(s, start)))
                 cost = self.cost_g[s]
-                n_rollouts = self.n_iterations
+                n_iterations = self.n_iterations
                 self.reset()
 
-                return shortest_path, cost, n_rollouts
+                return shortest_path, cost, n_iterations
             else:
                 edges = env.step(s)
                 self.n_iterations += 1
@@ -73,7 +76,7 @@ class AStar(object):
                         self.traceback_table[e[0], self.traceback_table[e[0], :]] = 0
                         self.traceback_table[e[0], s] = 1
         self.reset()
-        raise Exception
+        raise Exception(self.name + " failed to find shortest path: planning took too long")
 
     def _traceback(self, s, start):
         path = []
@@ -85,7 +88,7 @@ class AStar(object):
 
     def reset(self):
         self.opened = []
-        self.cost_g = np.zeros(self.ob_space_dims).flatten() + np.infty
+        self.cost_g = np.zeros(self.grid_dims).flatten() + np.infty
         self.cost_h = None
-        self.traceback_table = np.zeros((self.n_vertices, self.n_vertices), dtype=bool)
+        self.traceback_table = np.zeros((self.n_cells, self.n_cells), dtype=bool)
         self.n_iterations = 0

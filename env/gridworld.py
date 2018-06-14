@@ -19,16 +19,17 @@ class GridWorld(object):
         self.dims = data[0].shape[0], data[0].shape[1]
         # Iterates underlying grids
         self.data = cycle(self.data)
-        self.n_vertices = self.dims[0] * self.dims[1]
+        self.n_cells = self.dims[0] * self.dims[1]
+        # Free cells
         self.states = None
         self.cur_grid = None
         # Transition graph
         self.G = None
         self.W = None
-        self.start = None
-        self.goal = None
+        self._start = None
+        self._goal = None
 
-    def reset(self, change_obstacles=True):
+    def reset(self, change_obstacles=True, sample_goal=True):
         """
 
         Move to next grid in data, sample random endpoints
@@ -40,45 +41,64 @@ class GridWorld(object):
         """
         if change_obstacles or self.cur_grid is None: self.cur_grid = next(self.data).flatten().astype(bool)
         self._sample_endpoints()
-        self.G = np.fromfunction(self._incident, (self.n_vertices, self.n_vertices), dtype=np.int16)
-        self.W = np.fromfunction(self._distance, (self.n_vertices, self.n_vertices), dtype=np.int16)
-        self.states = np.arange(self.n_vertices)[np.invert(self.cur_grid)]
-        return self.start, self.goal
+        self.G = np.fromfunction(self._incident, (self.n_cells, self.n_cells), dtype=np.int16)
+        self.W = np.fromfunction(self._distance, (self.n_cells, self.n_cells), dtype=np.int16)
+        self.states = np.arange(self.n_cells)[np.invert(self.cur_grid)]
+        return self._start, self._goal
 
-    def show(self):
+    def show(self, block=True):
         bitmap = self.cur_grid.astype(np.float32)
-        bitmap[self.start] = 0.2
-        bitmap[self.goal] = 0.6
+        if self._start is not None:
+            bitmap[self._start] = 0.2
+        if self._goal is not None:
+            bitmap[self._goal] = 0.6
         plt.imshow(np.reshape(bitmap, self.dims), cmap='Greys')
-        plt.show()
+        if block:
+            plt.show()
+        else:
+            plt.show(block=False)
 
     def step(self, cur_state):
         """
 
-        Rollout next states with respect to current state.
+        Expand next states with respect to current state.
         Takes current state as argument so the environment is stateless (model-based scenario).
 
         Args:
-            cur_state: flat index of current state
+            cur_state: int, index of current state
 
         Returns:
-            list of tuple(next_state_flat_index, transition_cost)
+            list(tuple(next_state_index, transition_cost))
         """
-        if cur_state == self.goal:
-            return cur_state, 0
         if self.cur_grid[cur_state]:
-            return None, 0
+            return list()
         else:
             next_states = np.where(self.G[cur_state, :])[0]
+            if next_states.size == 0:
+                return list()
             costs = self.W[cur_state, next_states]
             return list(zip(next_states, costs))
 
+    @property
+    def goal(self):
+        return self._goal
+
+    @goal.setter
+    def goal(self, val):
+        if val is None:
+            self._goal = None
+            return
+        if not 0 <= val <= self.n_cells:
+            raise Exception
+        if self._start is None or val == self._start or self.cur_grid[val]:
+            raise Exception
+        self._goal = val
+
     def _sample_endpoints(self):
         while True:
-            self.start = np.random.randint(0, self.n_vertices)
-            self.goal = np.random.randint(0, self.n_vertices)
-            is_obstacle = self.cur_grid[self.start]
-            if not is_obstacle and not self.cur_grid[self.goal] and self.start != self.goal: break
+            self._start = np.random.randint(0, self.n_cells)
+            self._goal = np.random.randint(0, self.n_cells)
+            if not self.cur_grid[self._start] and not self.cur_grid[self._goal] and self._start != self._goal: break
 
     def _incident(self, v1, v2):
         dist = self._distance(v1, v2)

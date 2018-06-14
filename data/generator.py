@@ -7,28 +7,28 @@ class ObstacleMapGenerator(object):
     """
 
     def __init__(self,
-                 shape=(10, 10),
+                 grid_dims=(10, 10),
                  n_grids=100,
                  n_obs=10,
                  max_size=None):
         """
 
         Args:
-            shape: grid size, tuple(height, width)
+            grid_dims: tuple(grid_height, grid_width)
             n_grids: int, number of grids to create
             n_obs: int, how many random obstacles to fill in each grid, currently all obstacles are rectangles
             max_size: int, maximum length of single rectangle along any dimension
         """
         self.data = None
-        self.shape = shape
+        self.grid_dims = grid_dims
         self.n_grids = n_grids
         self.n_obs = n_obs
-        self.max_size = max_size or np.ceil(np.min(self.shape) / 5)
+        self.max_size = max_size or np.ceil(np.min(self.grid_dims) / 5)
 
     def generate_data(self):
         self.data = []
         for i in range(self.n_grids):
-            grid = self._insert_rnd_obstacles(np.zeros(self.shape))
+            grid = self._insert_rnd_obstacles(np.zeros(self.grid_dims))
             self.data.append(grid)
         return self.data
 
