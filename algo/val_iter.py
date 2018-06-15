@@ -71,8 +71,6 @@ class ValIter(object):
                 continue
             costs = self.env.W[s, next_states] + self.cost_g[next_states]
             greedy_actions = np.logical_and(self.env.W[s, :] + self.cost_g == np.amin(costs), next_states)
-            if np.count_nonzero(greedy_actions) == 0:
-                pass
             self.policy[s, greedy_actions] = 1. / np.count_nonzero(greedy_actions)
 
     def _traceforward(self, s, goal):
@@ -82,8 +80,6 @@ class ValIter(object):
         while s != goal:
             t += 1
             if t > self.timeout:
-                pass
-                self.env.show()
                 raise Exception(
                     self.name + " failed to find shortest path: maybe something is blocking the goal?")
             s = np.argmax(self.policy[s, :])
