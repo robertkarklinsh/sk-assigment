@@ -8,7 +8,7 @@ class ValIter(object):
 
     def __init__(self,
                  grid_dims=(10, 10),
-                 timeout=500,
+                 timeout=1000,
                  delta=0.01,
                  gamma=0.99):
         """
@@ -62,7 +62,7 @@ class ValIter(object):
     def _init_greedy_policy(self):
 
         """
-        Init deterministic greedy policy with respect to current cost function.
+        Init greedy policy with respect to current cost function.
         """
         self.policy = self.policy * 0
         for s in self.env.states:
@@ -70,8 +70,10 @@ class ValIter(object):
             if np.count_nonzero(next_states) == 0:
                 continue
             costs = self.env.W[s, next_states] + self.cost_g[next_states]
-            greedy_actions = (self.env.W[s, :] + self.cost_g == np.amin(costs)) * next_states
-            self.policy[s, greedy_actions] = 1 / np.count_nonzero(greedy_actions)
+            greedy_actions = np.logical_and(self.env.W[s, :] + self.cost_g == np.amin(costs), next_states)
+            if np.count_nonzero(greedy_actions) == 0:
+                pass
+            self.policy[s, greedy_actions] = 1. / np.count_nonzero(greedy_actions)
 
     def _traceforward(self, s, goal):
         path = []
@@ -80,6 +82,8 @@ class ValIter(object):
         while s != goal:
             t += 1
             if t > self.timeout:
+                pass
+                self.env.show()
                 raise Exception(
                     self.name + " failed to find shortest path: maybe something is blocking the goal?")
             s = np.argmax(self.policy[s, :])

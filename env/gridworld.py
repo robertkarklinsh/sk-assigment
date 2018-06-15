@@ -105,7 +105,7 @@ class GridWorld(object):
         is_incident = (dist < 1.5) * (dist > 0)
         v1_is_free = np.invert(self.cur_grid[v1])
         v2_is_free = np.invert(self.cur_grid[v2])
-        return is_incident * v1_is_free * v2_is_free
+        return np.logical_and.reduce((is_incident, v1_is_free, v2_is_free))
 
     def _distance(self, v1, v2):
         v1_i = v1 // self.dims[1]
